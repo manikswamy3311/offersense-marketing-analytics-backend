@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.services.campaign_analysis import load_sample_data
 from app.database.db import get_connection
+from app.services.kpi_service import get_kpis
 
 router = APIRouter()
 
@@ -23,3 +24,7 @@ def check_data():
     data = cursor.fetchall()
     conn.close()
     return [dict(row) for row in data]
+
+@router.get("/kpis")
+def fetch_kpis():
+    return get_kpis()
