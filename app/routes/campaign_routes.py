@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.services.campaign_analysis import load_sample_data
 from app.database.db import get_connection
 from app.services.kpi_service import get_kpis
-
+from app.services.campaign_analysis import get_campaign_performance
 router = APIRouter()
 
 @router.get("/test")
@@ -28,3 +28,7 @@ def check_data():
 @router.get("/kpis")
 def fetch_kpis():
     return get_kpis()
+
+@router.get("/campaign-performance")
+def fetch_campaign_performance():
+    return get_campaign_performance()

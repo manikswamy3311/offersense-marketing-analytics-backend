@@ -37,3 +37,56 @@ def load_sample_data():
     
     # Close the connection
     conn.close()
+
+
+    # Create a function get_campaign_performance()
+# Requirements:
+# - Fetch all campaigns from database
+# - For each campaign calculate:
+#     ctr = (clicks / impressions) * 100
+#     conversion_rate = (conversions / clicks) * 100
+# - Handle division by zero
+# - Add these metrics to each campaign
+# - Find best campaign based on highest conversion_rate
+# - Return:
+#     {
+#       "campaigns": [...],
+#       "best_campaign": {...}
+#     }
+# - Use get_connection()
+# - Close connection
+# - Keep code clean
+def get_campaign_performance():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, impressions, clicks, conversions FROM campaigns")
+    campaigns = cursor.fetchall()
+    conn.close()
+
+    campaign_list = []
+    best_campaign = None
+    highest_conversion_rate = 0
+
+    for name, impressions, clicks, conversions in campaigns:
+        ctr = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
+        conversion_rate = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
+        
+        campaign_data = {
+            "name": name,
+            "impressions": impressions,
+            "clicks": clicks,
+            "conversions": conversions,
+            "ctr": ctr,
+            "conversion_rate": conversion_rate
+        }
+        
+        campaign_list.append(campaign_data)
+
+        if conversion_rate > highest_conversion_rate:
+            highest_conversion_rate = conversion_rate
+            best_campaign = campaign_data
+
+    return {
+        "campaigns": campaign_list,
+        "best_campaign": best_campaign
+    }
