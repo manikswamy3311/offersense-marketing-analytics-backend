@@ -5,7 +5,7 @@ from app.services.kpi_service import get_kpis
 from app.services.campaign_analysis import get_campaign_performance
 from app.services.segmentation_service import get_customer_segments
 router = APIRouter()
-
+from app.services.campaign_analysis import get_offer_effectiveness
 @router.get("/test")
 def test_route():
     return {"message": "Campaign route working"}
@@ -36,3 +36,7 @@ def fetch_campaign_performance():
 @router.get("/segments")
 def customer_segments():
     return get_customer_segments()
+
+@router.get("/offer-effectiveness")
+def offer_effectiveness():
+    return get_offer_effectiveness()
