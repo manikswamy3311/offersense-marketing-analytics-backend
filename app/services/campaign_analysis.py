@@ -16,27 +16,37 @@
 # - Keep code clean and minimal
 import pandas as pd
 from app.database.db import get_connection
+import logging
+
+logger = logging.getLogger(__name__)
 
 def load_sample_data():
-    # Sample campaign data
-    data = {
-        "name": ["Campaign A", "Campaign B", "Campaign C"],
-        "impressions": [1000, 1500, 2000],
-        "clicks": [100, 150, 250],
-        "conversions": [10, 20, 30]
-    }
-    
-    # Create DataFrame
-    df = pd.DataFrame(data)
-    
-    # Get database connection
-    conn = get_connection()
-    
-    # Insert data into campaigns table
-    df.to_sql("campaigns", conn, if_exists="replace", index=False)
-    
-    # Close the connection
-    conn.close()
+    conn = None
+    try:
+        # Sample campaign data
+        data = {
+            "name": ["Campaign A", "Campaign B", "Campaign C"],
+            "impressions": [1000, 1500, 2000],
+            "clicks": [100, 150, 250],
+            "conversions": [10, 20, 30]
+        }
+        
+        # Create DataFrame
+        df = pd.DataFrame(data)
+        
+        # Get database connection
+        conn = get_connection()
+        
+        # Insert data into campaigns table
+        df.to_sql("campaigns", conn, if_exists="replace", index=False)
+        
+        logger.info("Sample data loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading sample data: {str(e)}")
+        raise Exception(f"Failed to load sample data: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 
     # Create a function get_campaign_performance()
@@ -57,39 +67,46 @@ def load_sample_data():
 # - Close connection
 # - Keep code clean
 def get_campaign_performance():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, impressions, clicks, conversions FROM campaigns")
-    campaigns = cursor.fetchall()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, impressions, clicks, conversions FROM campaigns")
+        campaigns = cursor.fetchall()
 
-    campaign_list = []
-    best_campaign = None
-    highest_conversion_rate = 0
+        campaign_list = []
+        best_campaign = None
+        highest_conversion_rate = 0
 
-    for name, impressions, clicks, conversions in campaigns:
-        ctr = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
-        conversion_rate = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
-        
-        campaign_data = {
-            "name": name,
-            "impressions": impressions,
-            "clicks": clicks,
-            "conversions": conversions,
-            "ctr": ctr,
-            "conversion_rate": conversion_rate
+        for name, impressions, clicks, conversions in campaigns:
+            ctr = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
+            conversion_rate = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
+            
+            campaign_data = {
+                "name": name,
+                "impressions": impressions,
+                "clicks": clicks,
+                "conversions": conversions,
+                "ctr": ctr,
+                "conversion_rate": conversion_rate
+            }
+            
+            campaign_list.append(campaign_data)
+
+            if conversion_rate > highest_conversion_rate:
+                highest_conversion_rate = conversion_rate
+                best_campaign = campaign_data
+
+        return {
+            "campaigns": campaign_list,
+            "best_campaign": best_campaign
         }
-        
-        campaign_list.append(campaign_data)
-
-        if conversion_rate > highest_conversion_rate:
-            highest_conversion_rate = conversion_rate
-            best_campaign = campaign_data
-
-    return {
-        "campaigns": campaign_list,
-        "best_campaign": best_campaign
-    }
+    except Exception as e:
+        logger.error(f"Error getting campaign performance: {str(e)}")
+        raise Exception(f"Failed to get campaign performance: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
     # IMPORTANT:
 # Use sqlite3 only
 # Do NOT use pandas
@@ -119,45 +136,52 @@ def get_campaign_performance():
 # - Keep code clean and minimal
 
 def get_offer_effectiveness():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, impressions, clicks, conversions FROM campaigns")
-    campaigns = cursor.fetchall()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, impressions, clicks, conversions FROM campaigns")
+        campaigns = cursor.fetchall()
 
-    campaign_list = []
-    best_offer = None
-    worst_offer = None
-    highest_conversion_rate = 0
-    lowest_conversion_rate = float('inf')
+        campaign_list = []
+        best_offer = None
+        worst_offer = None
+        highest_conversion_rate = 0
+        lowest_conversion_rate = float('inf')
 
-    for name, impressions, clicks, conversions in campaigns:
-        ctr = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
-        conversion_rate = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
-        drop_off_rate = round(((clicks - conversions) / clicks) * 100, 2) if clicks > 0 else 0.00
-        
-        campaign_data = {
-            "name": name,
-            "impressions": impressions,
-            "clicks": clicks,
-            "conversions": conversions,
-            "ctr": ctr,
-            "conversion_rate": conversion_rate,
-            "drop_off_rate": drop_off_rate
+        for name, impressions, clicks, conversions in campaigns:
+            ctr = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
+            conversion_rate = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
+            drop_off_rate = round(((clicks - conversions) / clicks) * 100, 2) if clicks > 0 else 0.00
+            
+            campaign_data = {
+                "name": name,
+                "impressions": impressions,
+                "clicks": clicks,
+                "conversions": conversions,
+                "ctr": ctr,
+                "conversion_rate": conversion_rate,
+                "drop_off_rate": drop_off_rate
+            }
+            
+            campaign_list.append(campaign_data)
+
+            if conversion_rate > highest_conversion_rate:
+                highest_conversion_rate = conversion_rate
+                best_offer = campaign_data
+
+            if conversion_rate < lowest_conversion_rate:
+                lowest_conversion_rate = conversion_rate
+                worst_offer = campaign_data
+
+        return {
+            "campaigns": campaign_list,
+            "best_offer": best_offer,
+            "worst_offer": worst_offer
         }
-        
-        campaign_list.append(campaign_data)
-
-        if conversion_rate > highest_conversion_rate:
-            highest_conversion_rate = conversion_rate
-            best_offer = campaign_data
-
-        if conversion_rate < lowest_conversion_rate:
-            lowest_conversion_rate = conversion_rate
-            worst_offer = campaign_data
-
-    return {
-        "campaigns": campaign_list,
-        "best_offer": best_offer,
-        "worst_offer": worst_offer
-    }
+    except Exception as e:
+        logger.error(f"Error getting offer effectiveness: {str(e)}")
+        raise Exception(f"Failed to get offer effectiveness: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
