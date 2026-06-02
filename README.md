@@ -11,16 +11,47 @@ A FastAPI-based backend system for marketing campaign analytics, providing insig
 - **Offer Effectiveness**: Identify best and worst performing offers
 - **Error Handling**: Comprehensive error handling and logging
 - **Data Validation**: Pydantic models for request/response validation
+- **Docker Ready**: Production-grade Docker configuration with docker-compose
+- **Kubernetes Support**: Full K8s deployment manifests
+- **Monitoring**: Built-in Prometheus & Grafana integration
+- **Logging**: Centralized logging with ELK stack support
 
 ## 📋 Prerequisites
 
+### For Local Development
 - Python 3.8+
 - pip (Python package manager)
 
-## 🛠️ Installation
+### For Docker
+- Docker Desktop installed ([Download](https://www.docker.com/products/docker-desktop))
+- Docker Compose (included with Docker Desktop)
+
+## 🛠️ Quick Start - Choose Your Path
+
+### Option 1: Docker (Recommended for All Users)
+
+**Start the application in 30 seconds:**
+
+```bash
+# Clone repository
+git clone https://github.com/manikswamy3311/offersense-marketing-analytics-backend.git
+cd offersense-marketing-analytics-backend
+
+# Start services with Docker Compose
+docker-compose up
+```
+
+Then access:
+- **API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+- **Redis Cache**: localhost:6379
+- **DB Manager**: http://localhost:8080
+
+### Option 2: Local Python
 
 1. **Clone the repository**
 ```bash
+git clone https://github.com/manikswamy3311/offersense-marketing-analytics-backend.git
 cd offersense-marketing-analytics-backend
 ```
 
@@ -34,17 +65,50 @@ pip install -r requirements.txt
 python -m app.database.init_db
 ```
 
-## 🏃 Running the Application
-
-1. **Start the development server**
+4. **Start the development server**
 ```bash
 uvicorn app.main:app --reload
 ```
 
-2. **Access the API**
+5. **Access the API**
    - API Base URL: `http://localhost:8000`
    - Interactive API Docs: `http://localhost:8000/docs`
    - Alternative Docs: `http://localhost:8000/redoc`
+
+## 🐳 Docker Commands
+
+```bash
+# Start services
+docker-compose up
+
+# Start in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Stop services
+docker-compose down
+
+# Rebuild image
+docker-compose build --no-cache
+
+# Scale API instances
+docker-compose up -d --scale api=3
+```
+
+## 🌍 Deployment
+
+For comprehensive deployment guides, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+### Quick Deployment Options:
+
+- **VPS/Dedicated Server**: Use `docker-compose-prod.yml`
+- **Kubernetes**: Use `k8s-deployment.yaml`
+- **AWS ECS**: Push to ECR, configure ECS
+- **Heroku**: Use Procfile with Docker
+- **Google Cloud Run**: Deploy directly
+- **DigitalOcean App Platform**: Connect GitHub repo
 
 ## 📡 API Endpoints
 

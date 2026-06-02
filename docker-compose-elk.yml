@@ -1,0 +1,95 @@
+version: '3.9'
+
+services:
+  # Elasticsearch - Search and analytics engine
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
+    container_name: offersense-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - offersense-network
+    healthcheck:
+      test: curl -s http://elasticsearch:9200 >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Logstash - Log processing engine
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.6.2
+    container_name: offersense-logstash
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./logstash-patterns:/usr/share/logstash/patterns
+    environment:
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    ports:
+      - "5000:5000/udp"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+    networks:
+      - offersense-network
+
+  # Kibana - Visualization platform
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.6.2
+    container_name: offersense-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - offersense-network
+    healthcheck:
+      test: curl -s http://kibana:5601/api/status >/dev/null || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI Backend with logging
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: offersense-api-logging
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - .:/app
+      - /app/__pycache__
+      - ./logs:/app/logs
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - offersense-network
+    depends_on:
+      - logstash
+    logging:
+      driver: splunk
+      options:
+        splunk-token: splunk-token-here
+        splunk-url: https://splunk-server:8088
+
+networks:
+  offersense-network:
+    driver: bridge
+
+volumes:
+  elasticsearch_data:
+    driver: local

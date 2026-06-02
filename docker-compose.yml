@@ -1,12 +1,13 @@
 version: '3.9'
 
 services:
-  # Main FastAPI Backend Service
+  # FastAPI Backend Service (Development with hot-reload)
   api:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: offersense-api
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
@@ -14,9 +15,12 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - LOG_LEVEL=INFO
+      - DATABASE_URL=offersense.db
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
     volumes:
       - .:/app
       - /app/__pycache__
+      - ./logs:/app/logs
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
       - offersense-network
@@ -26,22 +30,45 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+    depends_on:
+      - redis
 
-  # Optional: SQLite Database Volume (for persistence)
-  # In production, consider using PostgreSQL or MySQL
-  db:
-    image: alpine:latest
-    container_name: offersense-db
+  # Redis Cache Service (Optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: offersense-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
     volumes:
-      - db_data:/app/data
-    command: tail -f /dev/null  # Keep container running
+      - redis_data:/data
     networks:
       - offersense-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Adminer for SQLite database management (Optional)
+  adminer:
+    image: adminer:latest
+    container_name: offersense-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+    networks:
+      - offersense-network
+    depends_on:
+      - api
 
 networks:
   offersense-network:
     driver: bridge
 
 volumes:
-  db_data:
+  redis_data:
     driver: local
