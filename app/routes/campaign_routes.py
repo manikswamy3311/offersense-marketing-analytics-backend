@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from app.services.campaign_analysis import load_sample_data, get_campaign_performance, get_offer_effectiveness
 from app.database.db import get_connection
 from app.services.kpi_service import get_kpis
@@ -8,18 +8,23 @@ from app.services.crud_service import (
     update_campaign, delete_campaign
 )
 from app.models.models import CampaignCreate, CampaignUpdate
+from app.dependencies import get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# =================== PUBLIC ENDPOINTS ===================
+
 @router.get("/test")
 def test_route():
-    return {"message": "Campaign route working"}
+    """Public health check endpoint"""
+    return {"message": "Campaign route working", "status": "healthy"}
 
 
 @router.get("/load-data")
 def load_data():
+    """Load sample campaign data (for testing/demo only)"""
     try:
         load_sample_data()
         return {"message": "Sample data loaded successfully"}
@@ -33,6 +38,7 @@ def load_data():
 
 @router.get("/check-data")
 def check_data():
+    """View all raw campaign data (public for demo)"""
     conn = None
     try:
         conn = get_connection()
@@ -50,9 +56,18 @@ def check_data():
         if conn:
             conn.close()
 
+# =================== PROTECTED ANALYTICS ENDPOINTS ===================
+# These require JWT authentication
+
 @router.get("/kpis")
-def fetch_kpis():
+def fetch_kpis(current_user: dict = Depends(get_current_user)):
+    """
+    Get overall KPI metrics (requires authentication).
+    
+    Returns: impressions, clicks, conversions, CTR, conversion rate
+    """
     try:
+        logger.info(f"KPI fetch by user: {current_user['username']}")
         return get_kpis()
     except Exception as e:
         logger.error(f"Error fetching KPIs: {str(e)}")
@@ -62,8 +77,14 @@ def fetch_kpis():
         )
 
 @router.get("/campaign-performance")
-def fetch_campaign_performance():
+def fetch_campaign_performance(current_user: dict = Depends(get_current_user)):
+    """
+    Get campaign performance metrics (requires authentication).
+    
+    Returns: All campaigns with CTR, conversion rate, and best performer
+    """
     try:
+        logger.info(f"Campaign performance fetch by user: {current_user['username']}")
         return get_campaign_performance()
     except Exception as e:
         logger.error(f"Error fetching campaign performance: {str(e)}")
@@ -73,8 +94,14 @@ def fetch_campaign_performance():
         )
 
 @router.get("/segments")
-def customer_segments():
+def customer_segments(current_user: dict = Depends(get_current_user)):
+    """
+    Get customer segmentation (requires authentication).
+    
+    Returns: Campaigns segmented into High/Medium/Low performers
+    """
     try:
+        logger.info(f"Segmentation fetch by user: {current_user['username']}")
         return get_customer_segments()
     except Exception as e:
         logger.error(f"Error fetching segments: {str(e)}")
@@ -84,8 +111,14 @@ def customer_segments():
         )
 
 @router.get("/offer-effectiveness")
-def offer_effectiveness():
+def offer_effectiveness(current_user: dict = Depends(get_current_user)):
+    """
+    Get offer effectiveness analysis (requires authentication).
+    
+    Returns: Campaigns with drop-off rates and best/worst offers
+    """
     try:
+        logger.info(f"Offer effectiveness fetch by user: {current_user['username']}")
         return get_offer_effectiveness()
     except Exception as e:
         logger.error(f"Error fetching offer effectiveness: {str(e)}")
@@ -94,12 +127,17 @@ def offer_effectiveness():
             detail=f"Failed to get offer effectiveness: {str(e)}"
         )
 
-# ========== CRUD ENDPOINTS ==========
+# ========== PROTECTED CRUD ENDPOINTS ==========
+# All require JWT authentication
 
 @router.post("/campaigns", status_code=status.HTTP_201_CREATED)
-def create_new_campaign(campaign: CampaignCreate):
-    """Create a new campaign"""
+def create_new_campaign(
+    campaign: CampaignCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new campaign (requires authentication)"""
     try:
+        logger.info(f"Campaign created by user: {current_user['username']}")
         result = create_campaign(campaign)
         if result:
             return {"message": "Campaign created successfully", "campaign": result}
@@ -115,9 +153,10 @@ def create_new_campaign(campaign: CampaignCreate):
         )
 
 @router.get("/campaigns")
-def get_campaigns():
-    """Get all campaigns"""
+def get_campaigns(current_user: dict = Depends(get_current_user)):
+    """Get all campaigns (requires authentication)"""
     try:
+        logger.info(f"All campaigns fetched by user: {current_user['username']}")
         campaigns = get_all_campaigns()
         return {"campaigns": campaigns, "count": len(campaigns)}
     except Exception as e:
@@ -128,9 +167,13 @@ def get_campaigns():
         )
 
 @router.get("/campaigns/{campaign_id}")
-def get_campaign(campaign_id: int):
-    """Get a single campaign by ID"""
+def get_campaign(
+    campaign_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get a single campaign by ID (requires authentication)"""
     try:
+        logger.info(f"Campaign {campaign_id} fetched by user: {current_user['username']}")
         campaign = get_campaign_by_id(campaign_id)
         if not campaign:
             raise HTTPException(
@@ -148,9 +191,14 @@ def get_campaign(campaign_id: int):
         )
 
 @router.put("/campaigns/{campaign_id}")
-def update_existing_campaign(campaign_id: int, campaign_update: CampaignUpdate):
-    """Update an existing campaign"""
+def update_existing_campaign(
+    campaign_id: int,
+    campaign_update: CampaignUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an existing campaign (requires authentication)"""
     try:
+        logger.info(f"Campaign {campaign_id} updated by user: {current_user['username']}")
         updated_campaign = update_campaign(campaign_id, campaign_update)
         if not updated_campaign:
             raise HTTPException(
@@ -168,9 +216,13 @@ def update_existing_campaign(campaign_id: int, campaign_update: CampaignUpdate):
         )
 
 @router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_200_OK)
-def delete_existing_campaign(campaign_id: int):
-    """Delete a campaign"""
+def delete_existing_campaign(
+    campaign_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a campaign (requires authentication)"""
     try:
+        logger.info(f"Campaign {campaign_id} deleted by user: {current_user['username']}")
         success = delete_campaign(campaign_id)
         if not success:
             raise HTTPException(
