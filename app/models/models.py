@@ -1,5 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
+from datetime import datetime
+
+# =================== Campaign Models ===================
 
 class CampaignBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Campaign name")
@@ -56,3 +59,40 @@ class OfferEffectivenessResponse(BaseModel):
     ctr: float
     conversion_rate: float
     drop_off_rate: float
+
+# =================== User & Authentication Models ===================
+
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50, description="Username")
+    email: EmailStr = Field(..., description="User email address")
+    full_name: Optional[str] = Field(None, max_length=255, description="Full name")
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, description="Password (min 8 characters)")
+
+class UserLogin(BaseModel):
+    username: str = Field(..., description="Username")
+    password: str = Field(..., description="Password")
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    expires_in: int
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., description="Refresh token")
+
+class TokenPayload(BaseModel):
+    user_id: int
+    username: str
+    exp: int
+    type: str  # "access" or "refresh"

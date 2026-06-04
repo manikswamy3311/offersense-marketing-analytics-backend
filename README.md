@@ -9,6 +9,7 @@ A FastAPI-based backend system for marketing campaign analytics, providing insig
 - **Performance Analysis**: Track and compare campaign performance
 - **Customer Segmentation**: Segment campaigns into High/Medium/Low performers
 - **Offer Effectiveness**: Identify best and worst performing offers
+- **🔐 JWT Authentication**: Secure user registration, login, and token-based access
 - **Error Handling**: Comprehensive error handling and logging
 - **Data Validation**: Pydantic models for request/response validation
 - **Docker Ready**: Production-grade Docker configuration with docker-compose
