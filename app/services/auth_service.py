@@ -17,6 +17,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
+# In-memory token blacklist (use Redis in production for multi-instance support)
+_token_blacklist: set = set()
+
 
 class AuthService:
     """Authentication and authorization service"""
@@ -73,8 +76,21 @@ class AuthService:
             raise Exception("Failed to create refresh token")
     
     @staticmethod
+    def blacklist_token(token: str) -> None:
+        """Add token to blacklist (invalidate it)"""
+        _token_blacklist.add(token)
+        logger.info("Token blacklisted")
+
+    @staticmethod
+    def is_token_blacklisted(token: str) -> bool:
+        """Check if token has been blacklisted"""
+        return token in _token_blacklist
+
+    @staticmethod
     def verify_token(token: str) -> Optional[TokenPayload]:
         """Verify and decode JWT token"""
+        if token in _token_blacklist:
+            raise Exception("Token has been revoked")
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id = payload.get("user_id")

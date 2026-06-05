@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import HTTPAuthenticationCredentials
 from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
 from app.services.auth_service import AuthService, UserService
 from app.dependencies import get_current_user, security
@@ -143,14 +144,14 @@ def get_current_user_info(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/logout")
-def logout(current_user: dict = Depends(get_current_user)):
+def logout(
+    credentials: HTTPAuthenticationCredentials = Depends(security),
+    current_user: dict = Depends(get_current_user)
+):
     """
-    Logout current user.
-    
-    Note: This is a client-side operation. Client should discard the token.
-    Token will still be valid until expiration on server-side.
-    For production, implement token blacklist in Redis.
+    Logout current user and invalidate the access token.
     """
+    AuthService.blacklist_token(credentials.credentials)
     logger.info(f"User logged out: {current_user['username']}")
     return {
         "message": "Logged out successfully",
