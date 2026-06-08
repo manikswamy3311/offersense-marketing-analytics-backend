@@ -35,7 +35,7 @@ class AuthService:
         return pwd_context.verify(plain_password, hashed_password)
     
     @staticmethod
-    def create_access_token(user_id: int, username: str, expires_delta: Optional[timedelta] = None) -> str:
+    def create_access_token(user_id: int, username: str, role: str = "viewer", expires_delta: Optional[timedelta] = None) -> str:
         """Create JWT access token"""
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
@@ -45,6 +45,7 @@ class AuthService:
         payload = {
             "user_id": user_id,
             "username": username,
+            "role": role,
             "exp": expire,
             "type": "access"
         }
@@ -102,6 +103,7 @@ class AuthService:
             return TokenPayload(
                 user_id=user_id,
                 username=username,
+                role=payload.get("role", "viewer"),
                 exp=payload.get("exp"),
                 type=payload.get("type", "access")
             )
@@ -127,7 +129,7 @@ class UserService:
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, username, email, full_name, is_active, created_at FROM users WHERE id = ?",
+                "SELECT id, username, email, full_name, is_active, role, created_at FROM users WHERE id = ?",
                 (user_id,)
             )
             user = cursor.fetchone()
@@ -180,7 +182,7 @@ class UserService:
                 conn.close()
     
     @staticmethod
-    def create_user(username: str, email: str, password: str, full_name: Optional[str] = None):
+    def create_user(username: str, email: str, password: str, full_name: Optional[str] = None, role: str = "viewer"):
         """Create new user"""
         conn = None
         try:
@@ -197,9 +199,9 @@ class UserService:
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO users (username, email, full_name, hashed_password, is_active)
-                   VALUES (?, ?, ?, ?, 1)""",
-                (username, email, full_name, hashed_password)
+                """INSERT INTO users (username, email, full_name, hashed_password, is_active, role)
+                   VALUES (?, ?, ?, ?, 1, ?)""",
+                (username, email, full_name, hashed_password, role)
             )
             conn.commit()
             user_id = cursor.lastrowid

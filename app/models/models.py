@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 
 # =================== Campaign Models ===================
@@ -69,6 +69,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
+    role: Literal["admin", "analyst", "viewer"] = Field("viewer", description="User role")
 
 class UserLogin(BaseModel):
     username: str = Field(..., description="Username")
@@ -77,6 +78,7 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    role: str
     created_at: datetime
     
     class Config:
@@ -94,5 +96,6 @@ class RefreshTokenRequest(BaseModel):
 class TokenPayload(BaseModel):
     user_id: int
     username: str
+    role: str
     exp: int
     type: str  # "access" or "refresh"

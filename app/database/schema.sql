@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name TEXT,
     hashed_password TEXT NOT NULL,
     is_active BOOLEAN DEFAULT 1,
+    role TEXT DEFAULT 'viewer' CHECK(role IN ('admin', 'analyst', 'viewer')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

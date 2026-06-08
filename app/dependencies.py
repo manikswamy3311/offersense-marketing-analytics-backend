@@ -88,3 +88,22 @@ async def get_optional_user(credentials: HTTPAuthenticationCredentials = None):
         return await get_current_user(credentials)
     except HTTPException:
         return None
+
+
+def require_role(*roles: str):
+    """
+    Dependency factory that restricts access to users with specific roles.
+
+    Roles (in order of privilege):
+      - admin   : full access (CRUD + analytics)
+      - analyst : analytics + read
+      - viewer  : read-only
+    """
+    async def role_checker(current_user: dict = Depends(get_current_user)):
+        if current_user.get("role") not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role(s): {', '.join(roles)}"
+            )
+        return current_user
+    return role_checker

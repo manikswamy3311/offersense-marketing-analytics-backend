@@ -24,10 +24,18 @@ def initialize_database():
         full_name TEXT,
         hashed_password TEXT NOT NULL,
         is_active BOOLEAN DEFAULT 1,
+        role TEXT DEFAULT 'viewer' CHECK(role IN ('admin', 'analyst', 'viewer')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # Migrate existing databases: add role column if missing
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'viewer' CHECK(role IN ('admin', 'analyst', 'viewer'))")
+        conn.commit()
+    except Exception:
+        pass  # Column already exists
 
     # Create indexes for users
     cursor.execute("""

@@ -25,7 +25,8 @@ def register(user_data: UserCreate):
             username=user_data.username,
             email=user_data.email,
             password=user_data.password,
-            full_name=user_data.full_name
+            full_name=user_data.full_name,
+            role=user_data.role
         )
         
         logger.info(f"New user registered: {user_data.username}")
@@ -68,7 +69,8 @@ def login(credentials: UserLogin):
         # Create tokens
         access_token = AuthService.create_access_token(
             user_id=user["id"],
-            username=user["username"]
+            username=user["username"],
+            role=user.get("role", "viewer")
         )
         refresh_token = AuthService.create_refresh_token(
             user_id=user["id"],

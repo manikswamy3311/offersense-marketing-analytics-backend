@@ -8,7 +8,7 @@ from app.services.crud_service import (
     update_campaign, delete_campaign
 )
 from app.models.models import CampaignCreate, CampaignUpdate
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def check_data():
 # These require JWT authentication
 
 @router.get("/kpis")
-def fetch_kpis(current_user: dict = Depends(get_current_user)):
+def fetch_kpis(current_user: dict = Depends(require_role("admin", "analyst"))):
     """
     Get overall KPI metrics (requires authentication).
     
@@ -77,7 +77,7 @@ def fetch_kpis(current_user: dict = Depends(get_current_user)):
         )
 
 @router.get("/campaign-performance")
-def fetch_campaign_performance(current_user: dict = Depends(get_current_user)):
+def fetch_campaign_performance(current_user: dict = Depends(require_role("admin", "analyst"))):
     """
     Get campaign performance metrics (requires authentication).
     
@@ -94,7 +94,7 @@ def fetch_campaign_performance(current_user: dict = Depends(get_current_user)):
         )
 
 @router.get("/segments")
-def customer_segments(current_user: dict = Depends(get_current_user)):
+def customer_segments(current_user: dict = Depends(require_role("admin", "analyst"))):
     """
     Get customer segmentation (requires authentication).
     
@@ -111,7 +111,7 @@ def customer_segments(current_user: dict = Depends(get_current_user)):
         )
 
 @router.get("/offer-effectiveness")
-def offer_effectiveness(current_user: dict = Depends(get_current_user)):
+def offer_effectiveness(current_user: dict = Depends(require_role("admin", "analyst"))):
     """
     Get offer effectiveness analysis (requires authentication).
     
@@ -133,7 +133,7 @@ def offer_effectiveness(current_user: dict = Depends(get_current_user)):
 @router.post("/campaigns", status_code=status.HTTP_201_CREATED)
 def create_new_campaign(
     campaign: CampaignCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role("admin"))
 ):
     """Create a new campaign (requires authentication)"""
     try:
@@ -194,7 +194,7 @@ def get_campaign(
 def update_existing_campaign(
     campaign_id: int,
     campaign_update: CampaignUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role("admin"))
 ):
     """Update an existing campaign (requires authentication)"""
     try:
@@ -218,7 +218,7 @@ def update_existing_campaign(
 @router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_200_OK)
 def delete_existing_campaign(
     campaign_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role("admin"))
 ):
     """Delete a campaign (requires authentication)"""
     try:
