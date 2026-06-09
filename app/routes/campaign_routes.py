@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.responses import StreamingResponse
 from app.services.campaign_analysis import load_sample_data, get_campaign_performance, get_offer_effectiveness
 from app.database.db import get_connection
 from app.services.kpi_service import get_kpis
@@ -10,6 +11,8 @@ from app.services.crud_service import (
 from app.models.models import CampaignCreate, CampaignUpdate
 from app.dependencies import get_current_user, require_role
 import logging
+import csv
+import io
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -238,3 +241,63 @@ def delete_existing_campaign(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete campaign: {str(e)}"
         )
+
+# =================== CSV EXPORT ENDPOINTS ===================
+
+def _make_csv_response(rows: list, filename: str) -> StreamingResponse:
+    """Helper: convert list of dicts to a CSV StreamingResponse."""
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to export")
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+    writer.writeheader()
+    writer.writerows(rows)
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/export/campaigns")
+def export_campaigns(current_user: dict = Depends(require_role("admin", "analyst", "viewer"))):
+    """Export all campaigns as CSV (requires authentication)."""
+    try:
+        logger.info(f"Campaign CSV export by user: {current_user['username']}")
+        campaigns = get_all_campaigns()
+        return _make_csv_response(campaigns, "campaigns.csv")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting campaigns: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Export failed")
+
+
+@router.get("/export/performance")
+def export_performance(current_user: dict = Depends(require_role("admin", "analyst"))):
+    """Export campaign performance analysis as CSV (analyst/admin only)."""
+    try:
+        logger.info(f"Performance CSV export by user: {current_user['username']}")
+        data = get_campaign_performance()
+        rows = data.get("campaigns", data) if isinstance(data, dict) else data
+        return _make_csv_response(rows, "campaign_performance.csv")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting performance: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Export failed")
+
+
+@router.get("/export/segments")
+def export_segments(current_user: dict = Depends(require_role("admin", "analyst"))):
+    """Export customer segments as CSV (analyst/admin only)."""
+    try:
+        logger.info(f"Segments CSV export by user: {current_user['username']}")
+        rows = get_customer_segments()
+        return _make_csv_response(rows, "segments.csv")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting segments: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Export failed")
