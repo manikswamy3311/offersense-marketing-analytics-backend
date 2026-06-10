@@ -10,6 +10,9 @@ from app.services.crud_service import (
 )
 from app.models.models import CampaignCreate, CampaignUpdate
 from app.dependencies import get_current_user, require_role
+from app.services.analytics_service import (
+    get_summary_stats, get_benchmark, get_performance_scores, get_top_performers
+)
 import logging
 import csv
 import io
@@ -301,3 +304,59 @@ def export_segments(current_user: dict = Depends(require_role("admin", "analyst"
     except Exception as e:
         logger.error(f"Error exporting segments: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Export failed")
+
+# =================== ADVANCED ANALYTICS ENDPOINTS ===================
+
+@router.get("/analytics/summary")
+def analytics_summary(current_user: dict = Depends(require_role("admin", "analyst"))):
+    """Statistical summary across all campaigns (analyst/admin only)."""
+    try:
+        logger.info(f"Analytics summary by user: {current_user['username']}")
+        return get_summary_stats()
+    except Exception as e:
+        logger.error(f"Error in analytics summary: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
+
+
+@router.get("/analytics/benchmark")
+def analytics_benchmark(current_user: dict = Depends(require_role("admin", "analyst"))):
+    """Compare each campaign against portfolio average (analyst/admin only)."""
+    try:
+        logger.info(f"Analytics benchmark by user: {current_user['username']}")
+        return get_benchmark()
+    except Exception as e:
+        logger.error(f"Error in analytics benchmark: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
+
+
+@router.get("/analytics/scores")
+def analytics_scores(current_user: dict = Depends(require_role("admin", "analyst"))):
+    """Composite performance score (0-100) per campaign (analyst/admin only)."""
+    try:
+        logger.info(f"Analytics scores by user: {current_user['username']}")
+        return get_performance_scores()
+    except Exception as e:
+        logger.error(f"Error in analytics scores: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
+
+
+@router.get("/analytics/top")
+def analytics_top(
+    metric: str = "conversion_rate",
+    limit: int = 3,
+    current_user: dict = Depends(require_role("admin", "analyst"))
+):
+    """
+    Top N campaigns by a chosen metric (analyst/admin only).
+
+    - **metric**: ctr | conversion_rate | impressions | clicks | conversions
+    - **limit**: number of results (default 3)
+    """
+    try:
+        logger.info(f"Analytics top by user: {current_user['username']}")
+        return get_top_performers(metric=metric, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error in analytics top: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
