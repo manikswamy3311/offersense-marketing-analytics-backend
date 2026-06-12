@@ -99,3 +99,13 @@ class TokenPayload(BaseModel):
     role: str
     exp: int
     type: str  # "access" or "refresh"
+
+# =================== OAuth Models ===================
+
+class OAuthUserInfo(BaseModel):
+    """Normalised user info returned by any OAuth provider."""
+    provider: str          # "google" or "github"
+    oauth_id: str          # provider's unique user id
+    email: str
+    full_name: Optional[str] = None
+    username: Optional[str] = None

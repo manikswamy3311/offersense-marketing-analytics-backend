@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.campaign_routes import router as campaign_router
 from app.routes.auth_routes import router as auth_router
+from app.routes.oauth_routes import router as oauth_router
 import logging
 
 # Configure logging
@@ -28,6 +29,9 @@ app.add_middleware(
 # ✅ THEN ADD ROUTES
 # Authentication routes (public)
 app.include_router(auth_router)
+
+# OAuth routes (Google + GitHub)
+app.include_router(oauth_router)
 
 # Campaign routes (protected)
 app.include_router(campaign_router, prefix="/api")

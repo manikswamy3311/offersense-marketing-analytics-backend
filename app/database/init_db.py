@@ -37,6 +37,17 @@ def initialize_database():
     except Exception:
         pass  # Column already exists
 
+    # Migrate: add oauth columns if missing
+    for col_sql in [
+        "ALTER TABLE users ADD COLUMN oauth_provider TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN oauth_id TEXT DEFAULT NULL",
+    ]:
+        try:
+            cursor.execute(col_sql)
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
+
     # Create indexes for users
     cursor.execute("""
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)

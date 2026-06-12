@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
     hashed_password TEXT NOT NULL,
     is_active BOOLEAN DEFAULT 1,
     role TEXT DEFAULT 'viewer' CHECK(role IN ('admin', 'analyst', 'viewer')),
+    oauth_provider TEXT DEFAULT NULL,
+    oauth_id TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -9,9 +9,5 @@ PyJWT
 passlib[bcrypt]
 bcrypt
 python-jose[cryptography]
-PyJWT
-passlib[bcrypt]
-python-multipart
-python-jose[cryptography]
-bcrypt
 email-validator
+httpx
