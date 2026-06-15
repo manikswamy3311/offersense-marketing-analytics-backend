@@ -7,7 +7,7 @@ pytest
 python-multipart
 PyJWT
 passlib[bcrypt]
-bcrypt
+bcrypt==4.0.1
 python-jose[cryptography]
 email-validator
 httpx

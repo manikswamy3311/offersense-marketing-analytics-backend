@@ -25,4 +25,4 @@ jobs:
         run: python -m app.database.init_db
 
       - name: Run tests
-        run: python -m pytest tests/ -v
+        run: python -m pytest tests/ -v --tb=short
