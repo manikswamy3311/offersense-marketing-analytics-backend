@@ -5,17 +5,19 @@ A FastAPI-based backend system for marketing campaign analytics, providing insig
 ## 🚀 Features
 
 - **Campaign Management**: Full CRUD operations for marketing campaigns
-- **KPI Analytics**: Calculate key metrics (Impressions, Clicks, Conversions, CTR, Conversion Rate)
+- **KPI Analytics**: Impressions, Clicks, Conversions, CTR, Conversion Rate
 - **Performance Analysis**: Track and compare campaign performance
-- **Customer Segmentation**: Segment campaigns into High/Medium/Low performers
-- **Offer Effectiveness**: Identify best and worst performing offers
-- **🔐 JWT Authentication**: Secure user registration, login, and token-based access
-- **Error Handling**: Comprehensive error handling and logging
-- **Data Validation**: Pydantic models for request/response validation
-- **Docker Ready**: Production-grade Docker configuration with docker-compose
-- **Kubernetes Support**: Full K8s deployment manifests
-- **Monitoring**: Built-in Prometheus & Grafana integration
-- **Logging**: Centralized logging with ELK stack support
+- **Customer Segmentation**: High/Medium/Low performer tiers
+- **Offer Effectiveness**: Drop-off rate analysis, best/worst offer detection
+- **Advanced Analytics**: Statistical summary, benchmark vs average, performance scores, top performers
+- **CSV Export**: Download campaigns, performance, and segments as `.csv`
+- **🔐 JWT Authentication**: Register, login, refresh tokens, logout with token blacklist
+- **👥 Role-Based Access Control**: Admin / Analyst / Viewer permission tiers
+- **🌐 OAuth2**: Google and GitHub social login
+- **CI/CD**: GitHub Actions — runs tests on every push
+- **Docker Ready**: Dev, production, and ELK stack docker-compose files
+- **Kubernetes**: Full K8s manifests with HPA auto-scaling
+- **Monitoring**: Prometheus + Grafana + ELK logging
 
 ## 📋 Prerequisites
 
@@ -113,122 +115,55 @@ For comprehensive deployment guides, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.
 
 ## 📡 API Endpoints
 
-### Core Endpoints
+> All analytics and CRUD endpoints require a valid JWT `Authorization: Bearer <token>` header.
+> Role required is shown in brackets.
 
-#### Health Check
-- **GET** `/` - Check if server is running
+### Authentication
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/auth/register` | Register new user | Public |
+| POST | `/auth/login` | Login, receive tokens | Public |
+| POST | `/auth/refresh` | Refresh access token | Public |
+| GET | `/auth/me` | Get current user | Any |
+| POST | `/auth/change-password` | Change password | Any |
+| POST | `/auth/logout` | Logout + invalidate token | Any |
+| GET | `/auth/google/login` | Google OAuth login | Public |
+| GET | `/auth/github/login` | GitHub OAuth login | Public |
 
-#### Data Management
-- **GET** `/api/load-data` - Load sample campaign data
-- **GET** `/api/check-data` - View all raw campaign data
+### Analytics
+| Method | Endpoint | Description | Role |
+|---|---|---|---|
+| GET | `/api/kpis` | Overall KPIs | Analyst, Admin |
+| GET | `/api/campaign-performance` | Per-campaign metrics | Analyst, Admin |
+| GET | `/api/segments` | High/Medium/Low tiers | Analyst, Admin |
+| GET | `/api/offer-effectiveness` | Drop-off rates | Analyst, Admin |
+| GET | `/api/analytics/summary` | Statistical summary | Analyst, Admin |
+| GET | `/api/analytics/benchmark` | vs portfolio average | Analyst, Admin |
+| GET | `/api/analytics/scores` | Composite score 0–100 | Analyst, Admin |
+| GET | `/api/analytics/top` | Top N by any metric | Analyst, Admin |
 
-### Analytics Endpoints
+### Campaigns (CRUD)
+| Method | Endpoint | Description | Role |
+|---|---|---|---|
+| GET | `/api/campaigns` | List all campaigns | Any |
+| GET | `/api/campaigns/{id}` | Get single campaign | Any |
+| POST | `/api/campaigns` | Create campaign | Admin |
+| PUT | `/api/campaigns/{id}` | Update campaign | Admin |
+| DELETE | `/api/campaigns/{id}` | Delete campaign | Admin |
 
-#### KPIs
-- **GET** `/api/kpis`
-- Returns overall metrics: impressions, clicks, conversions, CTR, conversion rate
+### CSV Export
+| Method | Endpoint | Description | Role |
+|---|---|---|---|
+| GET | `/api/export/campaigns` | Export campaigns CSV | Any |
+| GET | `/api/export/performance` | Export performance CSV | Analyst, Admin |
+| GET | `/api/export/segments` | Export segments CSV | Analyst, Admin |
 
-**Response Example:**
-```json
-{
-  "impressions": 4500,
-  "clicks": 500,
-  "conversions": 60,
-  "ctr": 11.11,
-  "conversion_rate": 12.0
-}
-```
-
-#### Campaign Performance
-- **GET** `/api/campaign-performance`
-- Returns all campaigns with metrics and identifies the best performer
-
-**Response Example:**
-```json
-{
-  "campaigns": [
-    {
-      "name": "Campaign A",
-      "impressions": 1000,
-      "clicks": 100,
-      "conversions": 10,
-      "ctr": 10.0,
-      "conversion_rate": 10.0
-    }
-  ],
-  "best_campaign": {...}
-}
-```
-
-#### Customer Segments
-- **GET** `/api/segments`
-- Segments campaigns by performance level
-
-**Response Example:**
-```json
-[
-  {
-    "name": "Campaign C",
-    "impressions": 2000,
-    "clicks": 250,
-    "conversions": 30,
-    "ctr": 12.5,
-    "conversion_rate": 12.0,
-    "segment": "High Performer"
-  }
-]
-```
-
-#### Offer Effectiveness
-- **GET** `/api/offer-effectiveness`
-- Analyzes offer performance with drop-off rates
-
-**Response Example:**
-```json
-{
-  "campaigns": [...],
-  "best_offer": {...},
-  "worst_offer": {...}
-}
-```
-
-### CRUD Endpoints
-
-#### Create Campaign
-- **POST** `/api/campaigns`
-- **Body:**
-```json
-{
-  "name": "New Campaign",
-  "impressions": 5000,
-  "clicks": 400,
-  "conversions": 50
-}
-```
-
-#### Get All Campaigns
-- **GET** `/api/campaigns`
-- Returns all campaigns with calculated metrics
-
-#### Get Single Campaign
-- **GET** `/api/campaigns/{campaign_id}`
-- Returns a specific campaign by ID
-
-#### Update Campaign
-- **PUT** `/api/campaigns/{campaign_id}`
-- **Body:** (all fields optional)
-```json
-{
-  "name": "Updated Name",
-  "impressions": 6000,
-  "clicks": 500,
-  "conversions": 60
-}
-```
-
-#### Delete Campaign
-- **DELETE** `/api/campaigns/{campaign_id}`
-- Deletes a campaign by ID
+### Public
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/test` | Health check |
+| GET | `/api/load-data` | Load sample data |
+| GET | `/api/check-data` | View raw data |
 
 ## 🗂️ Project Structure
 
@@ -236,38 +171,47 @@ For comprehensive deployment guides, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.
 offersense-marketing-analytics-backend/
 ├── app/
 │   ├── main.py                      # FastAPI application entry point
+│   ├── dependencies.py              # JWT auth dependency injection
 │   ├── database/
-│   │   ├── db.py                    # Database connection handler
-│   │   ├── init_db.py              # Database initialization script
-│   │   └── schema.sql              # Database schema
+│   │   ├── db.py                    # SQLite connection handler
+│   │   ├── init_db.py               # Database initialisation script
+│   │   └── schema.sql               # Table definitions
 │   ├── models/
-│   │   └── models.py               # Pydantic models for validation
+│   │   └── models.py                # Pydantic request/response models
 │   ├── routes/
-│   │   └── campaign_routes.py      # API route definitions
-│   ├── services/
-│   │   ├── campaign_analysis.py    # Campaign analysis logic
-│   │   ├── kpi_service.py          # KPI calculations
-│   │   ├── segmentation_service.py # Customer segmentation
-│   │   └── crud_service.py         # CRUD operations
-│   └── utils/
-│       └── helpers.py              # Utility functions
+│   │   ├── auth_routes.py           # Authentication endpoints
+│   │   ├── oauth_routes.py          # OAuth2 (Google/GitHub) endpoints
+│   │   └── campaign_routes.py       # Analytics, CRUD, export endpoints
+│   └── services/
+│       ├── auth_service.py          # JWT + password hashing logic
+│       ├── oauth_service.py         # OAuth2 token exchange + user linking
+│       ├── campaign_analysis.py     # Performance analysis
+│       ├── kpi_service.py           # KPI calculations
+│       ├── segmentation_service.py  # Campaign segmentation
+│       ├── crud_service.py          # CRUD operations
+│       └── analytics_service.py    # Advanced analytics
 ├── notebooks/
-│   └── eda.ipynb                   # Exploratory data analysis
+│   └── eda.ipynb                    # Exploratory data analysis
 ├── tests/
-│   └── test_kpis.py               # Unit tests
-├── requirements.txt                # Python dependencies
-└── README.md                       # This file
+│   ├── test_kpis.py                 # KPI & CRUD unit tests
+│   ├── test_auth.py                 # Auth service unit tests
+│   └── test_analytics.py           # Analytics service unit tests
+├── .github/workflows/ci.yml         # GitHub Actions CI pipeline
+├── Dockerfile                       # Multi-stage production image
+├── docker-compose.yml               # Development stack
+├── docker-compose-prod.yml          # Production stack (PostgreSQL + Nginx)
+├── docker-compose-elk.yml           # ELK logging stack
+├── k8s-deployment.yaml              # Kubernetes manifests
+├── nginx.conf                       # Nginx reverse proxy config
+├── prometheus.yml                   # Prometheus scrape config
+├── requirements.txt                 # Python dependencies
+└── README.md
 ```
 
 ## 🧪 Running Tests
 
 ```bash
-python -m unittest tests.test_kpis
-```
-
-Or run with verbose output:
-```bash
-python -m unittest tests.test_kpis -v
+python -m pytest tests/ -v
 ```
 
 ## 📊 Data Model
