@@ -230,6 +230,11 @@ class UserService:
             if not user.get("is_active"):
                 logger.warning(f"Login attempt with inactive user: {username}")
                 return False, None
+
+            # Block password login for OAuth-only accounts
+            if user.get("hashed_password") == "OAUTH_NO_PASSWORD":
+                logger.warning(f"Password login attempt on OAuth-only account: {username}")
+                return False, None
             
             # Verify password
             if not AuthService.verify_password(password, user.get("hashed_password")):

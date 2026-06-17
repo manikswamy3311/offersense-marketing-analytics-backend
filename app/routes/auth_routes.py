@@ -111,10 +111,17 @@ def refresh_token(request: RefreshTokenRequest):
                 detail="Invalid refresh token"
             )
         
-        # Create new access token
+        # Create new access token (fetch user to get current role)
+        user = UserService.get_user_by_id(payload.user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
         access_token = AuthService.create_access_token(
             user_id=payload.user_id,
-            username=payload.username
+            username=payload.username,
+            role=user.get("role", "viewer")
         )
         
         logger.info(f"Token refreshed for user: {payload.username}")

@@ -197,8 +197,8 @@ class OAuthService:
             cursor.execute(
                 """INSERT INTO users
                    (username, email, full_name, hashed_password, is_active, role, oauth_provider, oauth_id)
-                   VALUES (?, ?, ?, '', 1, 'viewer', ?, ?)""",
-                (username, info.email, info.full_name, info.provider, info.oauth_id),
+                   VALUES (?, ?, ?, ?, 1, 'viewer', ?, ?)""",
+                (username, info.email, info.full_name, "OAUTH_NO_PASSWORD", info.provider, info.oauth_id),
             )
             conn.commit()
             user_id = cursor.lastrowid
