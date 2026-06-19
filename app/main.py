@@ -3,7 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes.campaign_routes import router as campaign_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.oauth_routes import router as oauth_router
+from app.database.db import get_connection
 import logging
+import time
+
+_start_time = time.time()
 
 # Configure logging
 logging.basicConfig(
@@ -43,4 +47,28 @@ def root():
         "version": "1.1.0",
         "docs": "http://localhost:8000/docs",
         "auth": "Login at /auth/login"
+    }
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for liveness/readiness probes."""
+    db_status = "ok"
+    try:
+        conn = get_connection()
+        conn.execute("SELECT 1")
+        conn.close()
+    except Exception:
+        db_status = "error"
+
+    uptime_seconds = round(time.time() - _start_time, 1)
+
+    status = "healthy" if db_status == "ok" else "degraded"
+
+    return {
+        "status": status,
+        "version": "1.1.0",
+        "uptime_seconds": uptime_seconds,
+        "checks": {
+            "database": db_status,
+        }
     }
