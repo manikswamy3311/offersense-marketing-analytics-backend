@@ -89,6 +89,49 @@ def get_all_campaigns():
         if conn:
             conn.close()
 
+def get_campaigns_paginated(page: int = 1, limit: int = 20):
+    """Get campaigns with pagination. Returns data and pagination metadata."""
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM campaigns")
+        total = cursor.fetchone()[0]
+
+        offset = (page - 1) * limit
+        cursor.execute("SELECT * FROM campaigns LIMIT ? OFFSET ?", (limit, offset))
+        results = cursor.fetchall()
+
+        campaigns = []
+        for row in results:
+            campaign = dict(row)
+            impressions = campaign['impressions']
+            clicks = campaign['clicks']
+            conversions = campaign['conversions']
+            campaign['ctr'] = round((clicks / impressions) * 100, 2) if impressions > 0 else 0.00
+            campaign['conversion_rate'] = round((conversions / clicks) * 100, 2) if clicks > 0 else 0.00
+            campaigns.append(campaign)
+
+        import math
+        pages = math.ceil(total / limit) if total > 0 else 1
+
+        return {
+            "campaigns": campaigns,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": pages,
+            "has_next": page < pages,
+            "has_prev": page > 1,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching paginated campaigns: {str(e)}")
+        raise Exception(f"Failed to fetch campaigns: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+
 def update_campaign(campaign_id: int, campaign_update: CampaignUpdate):
     """Update an existing campaign"""
     conn = None

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import datetime
 
 # =================== Campaign Models ===================
@@ -59,6 +59,15 @@ class OfferEffectivenessResponse(BaseModel):
     ctr: float
     conversion_rate: float
     drop_off_rate: float
+
+class PaginatedCampaignResponse(BaseModel):
+    campaigns: List[CampaignResponse]
+    total: int
+    page: int
+    limit: int
+    pages: int
+    has_next: bool
+    has_prev: bool
 
 # =================== User & Authentication Models ===================
 

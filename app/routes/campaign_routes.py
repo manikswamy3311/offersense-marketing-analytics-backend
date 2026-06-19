@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from fastapi.responses import StreamingResponse
 from app.services.campaign_analysis import load_sample_data, get_campaign_performance, get_offer_effectiveness
 from app.database.db import get_connection
@@ -6,7 +6,7 @@ from app.services.kpi_service import get_kpis
 from app.services.segmentation_service import get_customer_segments
 from app.services.crud_service import (
     create_campaign, get_campaign_by_id, get_all_campaigns,
-    update_campaign, delete_campaign
+    get_campaigns_paginated, update_campaign, delete_campaign
 )
 from app.models.models import CampaignCreate, CampaignUpdate
 from app.dependencies import get_current_user, require_role
@@ -159,12 +159,15 @@ def create_new_campaign(
         )
 
 @router.get("/campaigns")
-def get_campaigns(current_user: dict = Depends(get_current_user)):
-    """Get all campaigns (requires authentication)"""
+def get_campaigns(
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get campaigns with pagination (requires authentication)"""
     try:
-        logger.info(f"All campaigns fetched by user: {current_user['username']}")
-        campaigns = get_all_campaigns()
-        return {"campaigns": campaigns, "count": len(campaigns)}
+        logger.info(f"Campaigns page={page} limit={limit} fetched by user: {current_user['username']}")
+        return get_campaigns_paginated(page=page, limit=limit)
     except Exception as e:
         logger.error(f"Error fetching campaigns: {str(e)}")
         raise HTTPException(
