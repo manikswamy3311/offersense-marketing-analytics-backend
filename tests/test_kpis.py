@@ -265,6 +265,51 @@ class TestPaginationService(unittest.TestCase):
 
         mock_conn.close.assert_called_once()
 
+    @patch('app.services.crud_service.get_connection')
+    def test_name_filter_uses_like(self, mock_get_connection):
+        """name filter passes LIKE param with % wildcards to the query"""
+        mock_conn, mock_cursor = self._setup_mock(mock_get_connection, total=1, rows=[
+            self._make_row(1, 'Summer Sale', 500, 50, 5)
+        ])
+
+        get_campaigns_paginated(page=1, limit=20, name='Summer')
+
+        all_calls = mock_cursor.execute.call_args_list
+        # At least one call should contain %Summer%
+        params_used = [str(c) for c in all_calls]
+        self.assertTrue(any('%Summer%' in p for p in params_used))
+
+    @patch('app.services.crud_service.get_connection')
+    def test_invalid_sort_column_falls_back_to_id(self, mock_get_connection):
+        """Unknown sort_by value is silently replaced with 'id' (SQL injection guard)"""
+        mock_conn, mock_cursor = self._setup_mock(mock_get_connection, total=0, rows=[])
+
+        # Should not raise; unknown column is rejected
+        get_campaigns_paginated(page=1, limit=10, sort_by='malicious; DROP TABLE campaigns--')
+
+        all_calls = [str(c) for c in mock_cursor.execute.call_args_list]
+        self.assertTrue(any('ORDER BY id' in c for c in all_calls))
+
+    @patch('app.services.crud_service.get_connection')
+    def test_sort_desc_order(self, mock_get_connection):
+        """order=desc produces DESC in the SQL query"""
+        mock_conn, mock_cursor = self._setup_mock(mock_get_connection, total=0, rows=[])
+
+        get_campaigns_paginated(page=1, limit=10, sort_by='clicks', order='desc')
+
+        all_calls = [str(c) for c in mock_cursor.execute.call_args_list]
+        self.assertTrue(any('clicks DESC' in c for c in all_calls))
+
+    @patch('app.services.crud_service.get_connection')
+    def test_sort_asc_order_default(self, mock_get_connection):
+        """order=asc (default) produces ASC in the SQL query"""
+        mock_conn, mock_cursor = self._setup_mock(mock_get_connection, total=0, rows=[])
+
+        get_campaigns_paginated(page=1, limit=10, sort_by='name', order='asc')
+
+        all_calls = [str(c) for c in mock_cursor.execute.call_args_list]
+        self.assertTrue(any('name ASC' in c for c in all_calls))
+
 
 if __name__ == '__main__':
     unittest.main()

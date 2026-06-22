@@ -162,12 +162,15 @@ def create_new_campaign(
 def get_campaigns(
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     limit: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    name: str = Query(None, description="Filter by campaign name (partial match)"),
+    sort_by: str = Query("id", description="Sort column: id, name, impressions, clicks, conversions"),
+    order: str = Query("asc", description="Sort direction: asc or desc"),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get campaigns with pagination (requires authentication)"""
+    """Get campaigns with pagination, search, and sorting (requires authentication)"""
     try:
-        logger.info(f"Campaigns page={page} limit={limit} fetched by user: {current_user['username']}")
-        return get_campaigns_paginated(page=page, limit=limit)
+        logger.info(f"Campaigns fetched by {current_user['username']}: page={page} limit={limit} name={name} sort={sort_by} order={order}")
+        return get_campaigns_paginated(page=page, limit=limit, name=name, sort_by=sort_by, order=order)
     except Exception as e:
         logger.error(f"Error fetching campaigns: {str(e)}")
         raise HTTPException(

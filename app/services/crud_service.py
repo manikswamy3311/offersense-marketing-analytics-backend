@@ -89,18 +89,40 @@ def get_all_campaigns():
         if conn:
             conn.close()
 
-def get_campaigns_paginated(page: int = 1, limit: int = 20):
-    """Get campaigns with pagination. Returns data and pagination metadata."""
+ALLOWED_SORT_COLUMNS = {'id', 'name', 'impressions', 'clicks', 'conversions'}
+
+def get_campaigns_paginated(
+    page: int = 1,
+    limit: int = 20,
+    name: str = None,
+    sort_by: str = 'id',
+    order: str = 'asc',
+):
+    """Get campaigns with pagination, optional name filter, and sorting."""
+    # Allowlist sort column and direction to prevent SQL injection
+    sort_col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else 'id'
+    sort_dir = 'ASC' if order.lower() != 'desc' else 'DESC'
+
     conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT COUNT(*) FROM campaigns")
+        if name:
+            cursor.execute("SELECT COUNT(*) FROM campaigns WHERE name LIKE ?", (f"%{name}%",))
+        else:
+            cursor.execute("SELECT COUNT(*) FROM campaigns")
         total = cursor.fetchone()[0]
 
         offset = (page - 1) * limit
-        cursor.execute("SELECT * FROM campaigns LIMIT ? OFFSET ?", (limit, offset))
+        query = f"SELECT * FROM campaigns"
+        params = []
+        if name:
+            query += " WHERE name LIKE ?"
+            params.append(f"%{name}%")
+        query += f" ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        cursor.execute(query, params)
         results = cursor.fetchall()
 
         campaigns = []
