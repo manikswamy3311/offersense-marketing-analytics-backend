@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.routes.campaign_routes import router as campaign_router
 from app.routes.auth_routes import router as auth_router
 from app.routes.oauth_routes import router as oauth_router
 from app.database.db import get_connection
+from app.limiter import limiter
 import logging
 import time
 
@@ -20,6 +23,9 @@ app = FastAPI(
     version="1.1.0",
     description="Marketing Analytics Backend with JWT Authentication"
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ✅ ADD CORS IMMEDIATELY AFTER APP CREATION
 app.add_middleware(

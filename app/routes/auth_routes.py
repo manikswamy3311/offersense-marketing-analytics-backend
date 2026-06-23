@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.security import HTTPAuthenticationCredentials
 from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
 from app.services.auth_service import AuthService, UserService
 from app.dependencies import get_current_user, security
+from app.limiter import limiter
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate):
+@limiter.limit("3/minute")
+def register(request: Request, user_data: UserCreate):
     """
     Register a new user account.
     
@@ -49,7 +51,8 @@ def register(user_data: UserCreate):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(credentials: UserLogin):
+@limiter.limit("5/minute")
+def login(request: Request, credentials: UserLogin):
     """
     Login with username and password.
     
