@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS campaigns (
     name TEXT,
     impressions INTEGER,
     clicks INTEGER,
-    conversions INTEGER
+    conversions INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create table users for authentication

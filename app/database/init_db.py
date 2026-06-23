@@ -11,9 +11,22 @@ def initialize_database():
         name TEXT,
         impressions INTEGER,
         clicks INTEGER,
-        conversions INTEGER
+        conversions INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # Migrate existing databases: add timestamp columns if missing
+    for col_sql in [
+        "ALTER TABLE campaigns ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "ALTER TABLE campaigns ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+    ]:
+        try:
+            cursor.execute(col_sql)
+            conn.commit()
+        except Exception:
+            pass  # Column already exists
 
     # Create users table
     cursor.execute("""

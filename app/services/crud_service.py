@@ -186,7 +186,9 @@ def update_campaign(campaign_id: int, campaign_update: CampaignUpdate):
         if not update_fields:
             # No fields to update, return current campaign
             return get_campaign_by_id(campaign_id)
-        
+
+        # Always bump updated_at
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
         values.append(campaign_id)
         query = f"UPDATE campaigns SET {', '.join(update_fields)} WHERE id = ?"
         
