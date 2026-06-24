@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
     clicks INTEGER,
     conversions INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT 0
 );
 
 -- Create table users for authentication

@@ -13,7 +13,8 @@ def initialize_database():
         clicks INTEGER,
         conversions INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_deleted BOOLEAN DEFAULT 0
     )
     """)
 
@@ -21,6 +22,7 @@ def initialize_database():
     for col_sql in [
         "ALTER TABLE campaigns ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
         "ALTER TABLE campaigns ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "ALTER TABLE campaigns ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
     ]:
         try:
             cursor.execute(col_sql)

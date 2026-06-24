@@ -32,12 +32,12 @@ def create_campaign(campaign: CampaignCreate):
             conn.close()
 
 def get_campaign_by_id(campaign_id: int):
-    """Get a single campaign by ID"""
+    """Get a single campaign by ID (excludes soft-deleted)"""
     conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM campaigns WHERE id = ?", (campaign_id,))
+        cursor.execute("SELECT * FROM campaigns WHERE id = ? AND is_deleted = 0", (campaign_id,))
         result = cursor.fetchone()
         
         if not result:
@@ -62,12 +62,12 @@ def get_campaign_by_id(campaign_id: int):
             conn.close()
 
 def get_all_campaigns():
-    """Get all campaigns"""
+    """Get all campaigns (excludes soft-deleted)"""
     conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM campaigns")
+        cursor.execute("SELECT * FROM campaigns WHERE is_deleted = 0")
         results = cursor.fetchall()
         
         campaigns = []
@@ -108,21 +108,20 @@ def get_campaigns_paginated(
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Build WHERE clause (always exclude soft-deleted)
+        conditions = ["is_deleted = 0"]
+        params = []
         if name:
-            cursor.execute("SELECT COUNT(*) FROM campaigns WHERE name LIKE ?", (f"%{name}%",))
-        else:
-            cursor.execute("SELECT COUNT(*) FROM campaigns")
+            conditions.append("name LIKE ?")
+            params.append(f"%{name}%")
+        where_clause = "WHERE " + " AND ".join(conditions)
+
+        cursor.execute(f"SELECT COUNT(*) FROM campaigns {where_clause}", params)
         total = cursor.fetchone()[0]
 
         offset = (page - 1) * limit
-        query = f"SELECT * FROM campaigns"
-        params = []
-        if name:
-            query += " WHERE name LIKE ?"
-            params.append(f"%{name}%")
-        query += f" ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-        cursor.execute(query, params)
+        query = f"SELECT * FROM campaigns {where_clause} ORDER BY {sort_col} {sort_dir} LIMIT ? OFFSET ?"
+        cursor.execute(query, params + [limit, offset])
         results = cursor.fetchall()
 
         campaigns = []
@@ -207,20 +206,23 @@ def update_campaign(campaign_id: int, campaign_update: CampaignUpdate):
             conn.close()
 
 def delete_campaign(campaign_id: int):
-    """Delete a campaign"""
+    """Soft-delete a campaign (sets is_deleted=1, data is preserved)"""
     conn = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        
-        # Check if campaign exists
-        cursor.execute("SELECT * FROM campaigns WHERE id = ?", (campaign_id,))
+
+        # Check if campaign exists and is not already deleted
+        cursor.execute("SELECT id FROM campaigns WHERE id = ? AND is_deleted = 0", (campaign_id,))
         if not cursor.fetchone():
             return False
-        
-        cursor.execute("DELETE FROM campaigns WHERE id = ?", (campaign_id,))
+
+        cursor.execute(
+            "UPDATE campaigns SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (campaign_id,)
+        )
         conn.commit()
-        
+
         return True
     except Exception as e:
         logger.error(f"Error deleting campaign {campaign_id}: {str(e)}")
