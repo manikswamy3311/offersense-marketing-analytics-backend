@@ -20,7 +20,7 @@ logging.basicConfig(
 
 app = FastAPI(
     title="OfferSense API",
-    version="1.1.0",
+    version="1.2.0",
     description="Marketing Analytics Backend with JWT Authentication"
 )
 
@@ -38,21 +38,21 @@ app.add_middleware(
 
 # ✅ THEN ADD ROUTES
 # Authentication routes (public)
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api/v1")
 
 # OAuth routes (Google + GitHub)
-app.include_router(oauth_router)
+app.include_router(oauth_router, prefix="/api/v1")
 
 # Campaign routes (protected)
-app.include_router(campaign_router, prefix="/api")
+app.include_router(campaign_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
     return {
         "message": "OfferSense Backend Running",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "docs": "http://localhost:8000/docs",
-        "auth": "Login at /auth/login"
+        "auth": "Login at /api/v1/auth/login"
     }
 
 @app.get("/health")
