@@ -71,6 +71,18 @@ def initialize_database():
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
     """)
 
+    # Create audit_logs table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        action TEXT NOT NULL,
+        campaign_id INTEGER,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     conn.commit()
     conn.close()
     print("Database and tables created successfully!")

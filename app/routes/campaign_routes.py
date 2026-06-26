@@ -13,6 +13,7 @@ from app.dependencies import get_current_user, require_role
 from app.services.analytics_service import (
     get_summary_stats, get_benchmark, get_performance_scores, get_top_performers
 )
+from app.services.audit_service import log_action, get_audit_logs
 import logging
 import csv
 import io
@@ -146,6 +147,7 @@ def create_new_campaign(
         logger.info(f"Campaign created by user: {current_user['username']}")
         result = create_campaign(campaign)
         if result:
+            log_action(current_user["id"], current_user["username"], "create", result["id"])
             return {"message": "Campaign created successfully", "campaign": result}
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -217,6 +219,7 @@ def update_existing_campaign(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Campaign with ID {campaign_id} not found"
             )
+        log_action(current_user["id"], current_user["username"], "update", campaign_id)
         return {"message": "Campaign updated successfully", "campaign": updated_campaign}
     except HTTPException:
         raise
@@ -241,6 +244,7 @@ def delete_existing_campaign(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Campaign with ID {campaign_id} not found"
             )
+        log_action(current_user["id"], current_user["username"], "delete", campaign_id)
         return {"message": f"Campaign {campaign_id} deleted successfully"}
     except HTTPException:
         raise
@@ -252,6 +256,23 @@ def delete_existing_campaign(
         )
 
 # =================== CSV EXPORT ENDPOINTS ===================
+
+@router.get("/audit-logs")
+def fetch_audit_logs(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=200, description="Items per page (max 200)"),
+    current_user: dict = Depends(require_role("admin"))
+):
+    """Get paginated audit log (admin only)."""
+    try:
+        logger.info(f"Audit logs fetched by admin: {current_user['username']}")
+        return get_audit_logs(page=page, limit=limit)
+    except Exception as e:
+        logger.error(f"Error fetching audit logs: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch audit logs: {str(e)}"
+        )
 
 def _make_csv_response(rows: list, filename: str) -> StreamingResponse:
     """Helper: convert list of dicts to a CSV StreamingResponse."""
