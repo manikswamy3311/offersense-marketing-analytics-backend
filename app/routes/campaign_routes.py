@@ -14,6 +14,7 @@ from app.services.analytics_service import (
     get_summary_stats, get_benchmark, get_performance_scores, get_top_performers
 )
 from app.services.audit_service import log_action, get_audit_logs
+from app.cache import cache_get, cache_set, invalidate_analytics_cache
 import logging
 import csv
 import io
@@ -75,7 +76,12 @@ def fetch_kpis(current_user: dict = Depends(require_role("admin", "analyst"))):
     """
     try:
         logger.info(f"KPI fetch by user: {current_user['username']}")
-        return get_kpis()
+        cached = cache_get("kpis")
+        if cached:
+            return cached
+        result = get_kpis()
+        cache_set("kpis", result, ttl=60)
+        return result
     except Exception as e:
         logger.error(f"Error fetching KPIs: {str(e)}")
         raise HTTPException(
@@ -148,6 +154,7 @@ def create_new_campaign(
         result = create_campaign(campaign)
         if result:
             log_action(current_user["id"], current_user["username"], "create", result["id"])
+            invalidate_analytics_cache()
             return {"message": "Campaign created successfully", "campaign": result}
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -220,6 +227,7 @@ def update_existing_campaign(
                 detail=f"Campaign with ID {campaign_id} not found"
             )
         log_action(current_user["id"], current_user["username"], "update", campaign_id)
+        invalidate_analytics_cache()
         return {"message": "Campaign updated successfully", "campaign": updated_campaign}
     except HTTPException:
         raise
@@ -245,6 +253,7 @@ def delete_existing_campaign(
                 detail=f"Campaign with ID {campaign_id} not found"
             )
         log_action(current_user["id"], current_user["username"], "delete", campaign_id)
+        invalidate_analytics_cache()
         return {"message": f"Campaign {campaign_id} deleted successfully"}
     except HTTPException:
         raise
@@ -339,7 +348,12 @@ def analytics_summary(current_user: dict = Depends(require_role("admin", "analys
     """Statistical summary across all campaigns (analyst/admin only)."""
     try:
         logger.info(f"Analytics summary by user: {current_user['username']}")
-        return get_summary_stats()
+        cached = cache_get("analytics:summary")
+        if cached:
+            return cached
+        result = get_summary_stats()
+        cache_set("analytics:summary", result, ttl=120)
+        return result
     except Exception as e:
         logger.error(f"Error in analytics summary: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
@@ -350,7 +364,12 @@ def analytics_benchmark(current_user: dict = Depends(require_role("admin", "anal
     """Compare each campaign against portfolio average (analyst/admin only)."""
     try:
         logger.info(f"Analytics benchmark by user: {current_user['username']}")
-        return get_benchmark()
+        cached = cache_get("analytics:benchmark")
+        if cached:
+            return cached
+        result = get_benchmark()
+        cache_set("analytics:benchmark", result, ttl=120)
+        return result
     except Exception as e:
         logger.error(f"Error in analytics benchmark: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
@@ -361,7 +380,12 @@ def analytics_scores(current_user: dict = Depends(require_role("admin", "analyst
     """Composite performance score (0-100) per campaign (analyst/admin only)."""
     try:
         logger.info(f"Analytics scores by user: {current_user['username']}")
-        return get_performance_scores()
+        cached = cache_get("analytics:scores")
+        if cached:
+            return cached
+        result = get_performance_scores()
+        cache_set("analytics:scores", result, ttl=120)
+        return result
     except Exception as e:
         logger.error(f"Error in analytics scores: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analytics failed")
@@ -381,7 +405,13 @@ def analytics_top(
     """
     try:
         logger.info(f"Analytics top by user: {current_user['username']}")
-        return get_top_performers(metric=metric, limit=limit)
+        cache_key = f"analytics:top:{metric}:{limit}"
+        cached = cache_get(cache_key)
+        if cached:
+            return cached
+        result = get_top_performers(metric=metric, limit=limit)
+        cache_set(cache_key, result, ttl=60)
+        return result
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
