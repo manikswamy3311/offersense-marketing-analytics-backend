@@ -1,13 +1,14 @@
 import sys
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.services.kpi_service import get_kpis
-from app.services.crud_service import create_campaign, get_campaign_by_id, get_campaigns_paginated
+from app.services.crud_service import create_campaign, get_campaign_by_id, get_campaigns_paginated, delete_campaign, restore_campaign
+from app.services.audit_service import log_action, get_audit_logs
 from app.models.models import CampaignCreate
 
 
@@ -309,6 +310,114 @@ class TestPaginationService(unittest.TestCase):
 
         all_calls = [str(c) for c in mock_cursor.execute.call_args_list]
         self.assertTrue(any('name ASC' in c for c in all_calls))
+
+
+class TestSoftDelete(unittest.TestCase):
+    """Test soft delete and restore behavior"""
+
+    @patch('app.services.crud_service.get_connection')
+    def test_delete_sets_is_deleted_flag(self, mock_get_connection):
+        """delete_campaign updates is_deleted=1, does not DELETE the row"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_connection.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (1,)  # campaign found
+
+        result = delete_campaign(1)
+
+        self.assertTrue(result)
+        executed = [str(c) for c in mock_cursor.execute.call_args_list]
+        self.assertTrue(any('is_deleted = 1' in c for c in executed))
+        self.assertFalse(any('DELETE' in c.upper() for c in executed))
+
+    @patch('app.services.crud_service.get_connection')
+    def test_delete_returns_false_if_not_found(self, mock_get_connection):
+        """delete_campaign returns False when campaign does not exist"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_connection.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = None  # not found
+
+        result = delete_campaign(999)
+
+        self.assertFalse(result)
+
+    @patch('app.services.crud_service.get_connection')
+    def test_restore_sets_is_deleted_to_zero(self, mock_get_connection):
+        """restore_campaign updates is_deleted=0"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_connection.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (1,)  # deleted campaign found
+
+        result = restore_campaign(1)
+
+        self.assertTrue(result)
+        executed = [str(c) for c in mock_cursor.execute.call_args_list]
+        self.assertTrue(any('is_deleted = 0' in c for c in executed))
+
+    @patch('app.services.crud_service.get_connection')
+    def test_restore_returns_false_if_not_deleted(self, mock_get_connection):
+        """restore_campaign returns False when campaign is not in deleted state"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_connection.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = None  # is_deleted=1 check fails
+
+        result = restore_campaign(42)
+
+        self.assertFalse(result)
+
+
+class TestAuditService(unittest.TestCase):
+    """Test audit log service"""
+
+    @patch('app.services.audit_service.get_connection')
+    def test_log_action_inserts_row(self, mock_get_connection):
+        """log_action writes an INSERT into audit_logs"""
+        mock_conn = MagicMock()
+        mock_get_connection.return_value = mock_conn
+
+        log_action(user_id=1, username="admin", action="create", campaign_id=5)
+
+        mock_conn.execute.assert_called_once()
+        call_args = str(mock_conn.execute.call_args)
+        self.assertIn("INSERT", call_args)
+        self.assertIn("audit_logs", call_args)
+
+    @patch('app.services.audit_service.get_connection')
+    def test_log_action_silent_on_db_error(self, mock_get_connection):
+        """log_action does not raise even if the DB write fails"""
+        mock_get_connection.side_effect = Exception("DB unavailable")
+
+        try:
+            log_action(user_id=1, username="admin", action="delete", campaign_id=3)
+        except Exception:
+            self.fail("log_action raised an exception on DB error")
+
+    @patch('app.services.audit_service.get_connection')
+    def test_get_audit_logs_returns_paginated(self, mock_get_connection):
+        """get_audit_logs returns correct pagination metadata"""
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_get_connection.return_value = mock_conn
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (3,)
+        mock_cursor.fetchall.return_value = [
+            {'id': 3, 'user_id': 1, 'username': 'admin', 'action': 'delete', 'campaign_id': 2, 'timestamp': '2026-06-30'},
+            {'id': 2, 'user_id': 1, 'username': 'admin', 'action': 'update', 'campaign_id': 1, 'timestamp': '2026-06-29'},
+        ]
+
+        result = get_audit_logs(page=1, limit=50)
+
+        self.assertEqual(result['total'], 3)
+        self.assertEqual(result['page'], 1)
+        self.assertEqual(len(result['logs']), 2)
+        self.assertFalse(result['has_prev'])
 
 
 if __name__ == '__main__':

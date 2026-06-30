@@ -232,3 +232,30 @@ def delete_campaign(campaign_id: int):
     finally:
         if conn:
             conn.close()
+
+def restore_campaign(campaign_id: int):
+    """Restore a soft-deleted campaign (sets is_deleted=0)."""
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Only restore if it actually exists AND is deleted
+        cursor.execute("SELECT id FROM campaigns WHERE id = ? AND is_deleted = 1", (campaign_id,))
+        if not cursor.fetchone():
+            return False
+
+        cursor.execute(
+            "UPDATE campaigns SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (campaign_id,)
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error restoring campaign {campaign_id}: {str(e)}")
+        if conn:
+            conn.rollback()
+        raise Exception(f"Failed to restore campaign: {str(e)}")
+    finally:
+        if conn:
+            conn.close()

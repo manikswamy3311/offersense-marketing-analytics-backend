@@ -6,7 +6,7 @@ from app.services.kpi_service import get_kpis
 from app.services.segmentation_service import get_customer_segments
 from app.services.crud_service import (
     create_campaign, get_campaign_by_id, get_all_campaigns,
-    get_campaigns_paginated, update_campaign, delete_campaign
+    get_campaigns_paginated, update_campaign, delete_campaign, restore_campaign
 )
 from app.models.models import CampaignCreate, CampaignUpdate
 from app.dependencies import get_current_user, require_role
@@ -262,6 +262,32 @@ def delete_existing_campaign(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete campaign: {str(e)}"
+        )
+
+@router.post("/campaigns/{campaign_id}/restore", status_code=status.HTTP_200_OK)
+def restore_existing_campaign(
+    campaign_id: int,
+    current_user: dict = Depends(require_role("admin"))
+):
+    """Restore a soft-deleted campaign (admin only)."""
+    try:
+        logger.info(f"Campaign {campaign_id} restore requested by user: {current_user['username']}")
+        success = restore_campaign(campaign_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campaign {campaign_id} not found or is not deleted"
+            )
+        log_action(current_user["id"], current_user["username"], "restore", campaign_id)
+        invalidate_analytics_cache()
+        return {"message": f"Campaign {campaign_id} restored successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error restoring campaign {campaign_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to restore campaign: {str(e)}"
         )
 
 # =================== CSV EXPORT ENDPOINTS ===================
