@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.security import HTTPAuthenticationCredentials
 from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
-from app.services.auth_service import AuthService, UserService
+from app.services.auth_service import AuthService, UserService, AccountLockedException
 from app.dependencies import get_current_user, security
 from app.limiter import limiter
 import logging
@@ -68,8 +68,15 @@ def login(request: Request, credentials: UserLogin):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid username or password"
             )
-        
-        # Create tokens
+    except AccountLockedException as e:
+        raise HTTPException(status_code=status.HTTP_423_LOCKED, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error (auth): {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Login failed")
+
+    try:
         access_token = AuthService.create_access_token(
             user_id=user["id"],
             username=user["username"],

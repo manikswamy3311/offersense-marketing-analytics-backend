@@ -56,6 +56,8 @@ def initialize_database():
     for col_sql in [
         "ALTER TABLE users ADD COLUMN oauth_provider TEXT DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN oauth_id TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN locked_until TIMESTAMP DEFAULT NULL",
     ]:
         try:
             cursor.execute(col_sql)

@@ -20,6 +20,14 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 # In-memory token blacklist (use Redis in production for multi-instance support)
 _token_blacklist: set = set()
 
+# Account lockout settings
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_DURATION_MINUTES = 15
+
+
+class AccountLockedException(Exception):
+    pass
+
 
 class AuthService:
     """Authentication and authorization service"""
@@ -235,17 +243,85 @@ class UserService:
             if user.get("hashed_password") == "OAUTH_NO_PASSWORD":
                 logger.warning(f"Password login attempt on OAuth-only account: {username}")
                 return False, None
+
+            # Check account lockout
+            locked_until_str = user.get("locked_until")
+            if locked_until_str:
+                try:
+                    locked_until = datetime.fromisoformat(str(locked_until_str))
+                    if locked_until > datetime.utcnow():
+                        remaining = max(1, int((locked_until - datetime.utcnow()).total_seconds() / 60) + 1)
+                        raise AccountLockedException(
+                            f"Account locked due to too many failed attempts. Try again in {remaining} minute(s)."
+                        )
+                    else:
+                        # Lock expired — clear it
+                        AuthService._reset_failed_attempts(user["id"])
+                except AccountLockedException:
+                    raise
+                except Exception:
+                    pass
             
             # Verify password
             if not AuthService.verify_password(password, user.get("hashed_password")):
                 logger.warning(f"Failed login attempt for user: {username}")
+                AuthService._increment_failed_attempts(user["id"])
                 return False, None
             
+            # Success — reset lockout counter
+            AuthService._reset_failed_attempts(user["id"])
             logger.info(f"User authenticated: {username}")
             return True, user
+        except AccountLockedException:
+            raise
         except Exception as e:
             logger.error(f"Error authenticating user: {str(e)}")
             return False, None
+
+    @staticmethod
+    def _increment_failed_attempts(user_id: int):
+        """Increment failed login counter; lock account if threshold reached."""
+        conn = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?",
+                (user_id,)
+            )
+            cursor.execute("SELECT failed_attempts FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            attempts = row[0] if row else 0
+            if attempts >= MAX_FAILED_ATTEMPTS:
+                locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+                cursor.execute(
+                    "UPDATE users SET locked_until = ? WHERE id = ?",
+                    (locked_until.isoformat(), user_id)
+                )
+                logger.warning(f"Account locked: user_id={user_id} after {attempts} failed attempts")
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to increment failed attempts: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    @staticmethod
+    def _reset_failed_attempts(user_id: int):
+        """Reset failed login counter and clear lockout."""
+        conn = None
+        try:
+            conn = get_connection()
+            conn.execute(
+                "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
+                (user_id,)
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to reset failed attempts: {e}")
+        finally:
+            if conn:
+                conn.close()
     
     @staticmethod
     def deactivate_user(user_id: int) -> bool:
