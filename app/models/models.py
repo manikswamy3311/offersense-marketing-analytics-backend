@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, Literal, List
 from datetime import datetime
+import re
 
 # =================== Campaign Models ===================
 
@@ -82,6 +83,17 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
     role: Literal["admin", "analyst", "viewer"] = Field("viewer", description="User role")
 
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r'\d', v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r'[@$!%*?&#]', v):
+            raise ValueError("Password must contain at least one special character (@$!%*?&#)")
+        return v
+
 class UserLogin(BaseModel):
     username: str = Field(..., description="Username")
     password: str = Field(..., description="Password")
@@ -103,6 +115,21 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Refresh token")
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., description="Current password")
+    new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, v: str) -> str:
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r'\d', v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r'[@$!%*?&#]', v):
+            raise ValueError("Password must contain at least one special character (@$!%*?&#)")
+        return v
 
 class TokenPayload(BaseModel):
     user_id: int

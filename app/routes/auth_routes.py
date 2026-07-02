@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.security import HTTPAuthenticationCredentials
-from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
+from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, ChangePasswordRequest
 from app.services.auth_service import AuthService, UserService, AccountLockedException
 from app.dependencies import get_current_user, security
 from app.limiter import limiter
@@ -180,8 +180,7 @@ def logout(
 
 @router.post("/change-password")
 def change_password(
-    old_password: str,
-    new_password: str,
+    body: ChangePasswordRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -192,8 +191,8 @@ def change_password(
     try:
         success, message = UserService.change_password(
             user_id=current_user["id"],
-            old_password=old_password,
-            new_password=new_password
+            old_password=body.old_password,
+            new_password=body.new_password
         )
         
         if not success:

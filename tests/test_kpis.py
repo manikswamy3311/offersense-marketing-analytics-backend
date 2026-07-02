@@ -9,7 +9,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.services.kpi_service import get_kpis
 from app.services.crud_service import create_campaign, get_campaign_by_id, get_campaigns_paginated, delete_campaign, restore_campaign
 from app.services.audit_service import log_action, get_audit_logs
-from app.models.models import CampaignCreate
+from app.services.auth_service import AuthService, AccountLockedException
+from app.models.models import CampaignCreate, UserCreate
 
 
 class TestKPIService(unittest.TestCase):
@@ -418,6 +419,101 @@ class TestAuditService(unittest.TestCase):
         self.assertEqual(result['page'], 1)
         self.assertEqual(len(result['logs']), 2)
         self.assertFalse(result['has_prev'])
+
+
+class TestPasswordStrength(unittest.TestCase):
+    """Test password strength validation on UserCreate"""
+
+    def _make_user(self, password):
+        return UserCreate(
+            username="testuser",
+            email="test@example.com",
+            password=password
+        )
+
+    def test_strong_password_accepted(self):
+        """A password meeting all rules is accepted"""
+        user = self._make_user("Secure1@pass")
+        self.assertEqual(user.password, "Secure1@pass")
+
+    def test_missing_uppercase_rejected(self):
+        """Password without uppercase raises ValueError"""
+        with self.assertRaises(Exception):
+            self._make_user("secure1@pass")
+
+    def test_missing_digit_rejected(self):
+        """Password without digit raises ValueError"""
+        with self.assertRaises(Exception):
+            self._make_user("Secure@pass")
+
+    def test_missing_special_char_rejected(self):
+        """Password without special character raises ValueError"""
+        with self.assertRaises(Exception):
+            self._make_user("Secure1pass")
+
+    def test_too_short_rejected(self):
+        """Password shorter than 8 chars raises ValueError"""
+        with self.assertRaises(Exception):
+            self._make_user("S1@x")
+
+    def test_all_rules_met_various_specials(self):
+        """Different special characters are accepted"""
+        for special in ['@', '$', '!', '%', '*', '?', '&', '#']:
+            user = self._make_user(f"Password1{special}")
+            self.assertIsNotNone(user)
+
+
+class TestAccountLockout(unittest.TestCase):
+    """Test account lockout logic in AuthService"""
+
+    @patch('app.services.auth_service.UserService.get_user_by_username')
+    @patch('app.services.auth_service.AuthService._reset_failed_attempts')
+    def test_locked_account_raises_exception(self, mock_reset, mock_get_user):
+        """Login raises AccountLockedException when locked_until is in the future"""
+        from datetime import datetime, timedelta
+        future = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+        mock_get_user.return_value = {
+            'id': 1, 'username': 'user', 'is_active': True,
+            'hashed_password': 'hash', 'locked_until': future,
+            'failed_attempts': 5
+        }
+
+        with self.assertRaises(AccountLockedException):
+            AuthService.authenticate_user("user", "wrongpass")
+
+    @patch('app.services.auth_service.UserService.get_user_by_username')
+    @patch('app.services.auth_service.AuthService._reset_failed_attempts')
+    @patch('app.services.auth_service.AuthService.verify_password', return_value=True)
+    def test_expired_lock_resets_and_allows_login(self, mock_verify, mock_reset, mock_get_user):
+        """Expired lock is cleared and login succeeds with correct password"""
+        from datetime import datetime, timedelta
+        past = (datetime.utcnow() - timedelta(minutes=1)).isoformat()
+        mock_get_user.return_value = {
+            'id': 1, 'username': 'user', 'is_active': True,
+            'hashed_password': 'hash', 'locked_until': past,
+            'failed_attempts': 5
+        }
+
+        success, user = AuthService.authenticate_user("user", "Correct1@pass")
+
+        self.assertTrue(success)
+        mock_reset.assert_called()
+
+    @patch('app.services.auth_service.UserService.get_user_by_username')
+    @patch('app.services.auth_service.AuthService._increment_failed_attempts')
+    @patch('app.services.auth_service.AuthService.verify_password', return_value=False)
+    def test_wrong_password_increments_counter(self, mock_verify, mock_increment, mock_get_user):
+        """Failed login increments the failed attempts counter"""
+        mock_get_user.return_value = {
+            'id': 1, 'username': 'user', 'is_active': True,
+            'hashed_password': 'hash', 'locked_until': None,
+            'failed_attempts': 2
+        }
+
+        success, user = AuthService.authenticate_user("user", "wrongpass")
+
+        self.assertFalse(success)
+        mock_increment.assert_called_once_with(1)
 
 
 if __name__ == '__main__':
