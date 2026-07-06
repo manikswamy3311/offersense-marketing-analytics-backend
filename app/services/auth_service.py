@@ -322,7 +322,45 @@ class UserService:
         finally:
             if conn:
                 conn.close()
-    
+
+    @staticmethod
+    def get_all_users(page: int = 1, limit: int = 20):
+        """Return paginated list of users (safe fields only — no password hash)."""
+        import math
+        conn = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT COUNT(*) FROM users")
+            total = cursor.fetchone()[0]
+
+            offset = (page - 1) * limit
+            cursor.execute(
+                """SELECT id, username, email, full_name, is_active, role,
+                          created_at, oauth_provider, failed_attempts, locked_until
+                   FROM users ORDER BY id ASC LIMIT ? OFFSET ?""",
+                (limit, offset),
+            )
+            users = [dict(r) for r in cursor.fetchall()]
+
+            pages = math.ceil(total / limit) if total > 0 else 1
+            return {
+                "users": users,
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "pages": pages,
+                "has_next": page < pages,
+                "has_prev": page > 1,
+            }
+        except Exception as e:
+            logger.error(f"Error fetching all users: {e}")
+            raise Exception(f"Failed to fetch users: {e}")
+        finally:
+            if conn:
+                conn.close()
+
     @staticmethod
     def deactivate_user(user_id: int) -> bool:
         """Deactivate a user account"""

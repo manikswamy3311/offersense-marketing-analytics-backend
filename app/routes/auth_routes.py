@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Request
+from fastapi import APIRouter, HTTPException, status, Depends, Request, Query
 from fastapi.security import HTTPAuthenticationCredentials
 from app.models.models import UserCreate, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest, ChangePasswordRequest
 from app.services.auth_service import AuthService, UserService, AccountLockedException
-from app.dependencies import get_current_user, security
+from app.dependencies import get_current_user, security, require_role
 from app.limiter import limiter
 import logging
 
@@ -240,4 +240,48 @@ def deactivate_account(current_user: dict = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to deactivate account"
+        )
+
+# =================== ADMIN: USER MANAGEMENT ===================
+
+@router.get("/users")
+def list_users(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: dict = Depends(require_role("admin"))
+):
+    """List all users — paginated (admin only)."""
+    try:
+        logger.info(f"User list fetched by admin: {current_user['username']}")
+        return UserService.get_all_users(page=page, limit=limit)
+    except Exception as e:
+        logger.error(f"Error listing users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch users"
+        )
+
+@router.get("/users/{user_id}")
+def get_user(
+    user_id: int,
+    current_user: dict = Depends(require_role("admin"))
+):
+    """Get a single user by ID (admin only)."""
+    try:
+        user = UserService.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User {user_id} not found"
+            )
+        # Strip password hash before returning
+        user.pop("hashed_password", None)
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch user"
         )
