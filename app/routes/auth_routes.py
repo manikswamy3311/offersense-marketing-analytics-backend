@@ -128,16 +128,25 @@ def refresh_token(request: RefreshTokenRequest):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
             )
+
+        # Rotate: blacklist the old refresh token
+        AuthService.blacklist_token(request.refresh_token)
+
         access_token = AuthService.create_access_token(
             user_id=payload.user_id,
             username=payload.username,
             role=user.get("role", "viewer")
         )
+        new_refresh_token = AuthService.create_refresh_token(
+            user_id=payload.user_id,
+            username=payload.username,
+        )
         
-        logger.info(f"Token refreshed for user: {payload.username}")
+        logger.info(f"Token refreshed (rotated) for user: {payload.username}")
         
         return TokenResponse(
             access_token=access_token,
+            refresh_token=new_refresh_token,
             token_type="bearer",
             expires_in=30 * 60  # 30 minutes in seconds
         )

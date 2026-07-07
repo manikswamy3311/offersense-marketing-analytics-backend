@@ -8,9 +8,28 @@ from app.routes.oauth_routes import router as oauth_router
 from app.database.db import get_connection
 from app.limiter import limiter
 import logging
+import os
 import time
 
 _start_time = time.time()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+_startup_logger = logging.getLogger("offersense.startup")
+
+def _validate_env():
+    """Warn loudly if critical env vars are missing or left at insecure defaults."""
+    warnings = []
+    if os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production") == "your-secret-key-change-in-production":
+        warnings.append("JWT_SECRET_KEY is not set — using insecure default. Set it before going to production.")
+    if not os.getenv("DATABASE_URL"):
+        warnings.append("DATABASE_URL is not set — using local SQLite (dev only).")
+    for msg in warnings:
+        _startup_logger.warning("CONFIG WARNING: %s", msg)
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +45,8 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+_validate_env()
 
 # ✅ ADD CORS IMMEDIATELY AFTER APP CREATION
 app.add_middleware(

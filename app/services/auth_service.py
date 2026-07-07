@@ -1,5 +1,6 @@
 import jwt
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from passlib.context import CryptContext
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT Configuration
-SECRET_KEY = "your-secret-key-change-in-production"  # Change in .env
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
